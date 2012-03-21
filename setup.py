@@ -24,6 +24,7 @@ setup(name='raptus.princexml',
       zip_safe=False,
       install_requires=[
           'setuptools',
+          'BeautifulSoup',
           # -*- Extra requirements: -*-
       ],
       entry_points="""
