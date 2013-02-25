@@ -8,7 +8,9 @@ import StringIO
 from copy import deepcopy
 from urllib2 import urlopen
 
-from BeautifulSoup import BeautifulSoup, Tag, Comment, NavigableString
+from BeautifulSoup import BeautifulSoup, Tag
+
+from AccessControl import Unauthorized
 
 from zope import interface
 from zope import component
@@ -44,22 +46,24 @@ class PDFConverter(object):
         """ Returns the contents of the PDF as a stream or
             writes them directly into the provided destination
         """
-        filename = self._download(method)
-        ret = destination is None
-        if ret:
-            destination = os.path.join(os.path.dirname(filename), 'index.pdf')
-        subprocess.call([prince,"--input=html",filename,"-o",destination]);
-        if not os.path.isfile(destination):
-            result = False
-        else:
-            result = True
+        try:
+            filename = self._download(method)
+            ret = destination is None
             if ret:
-                result = StringIO.StringIO()
-                file = open(destination, 'r')
-                for line in file:
-                    result.write(line)
-                file.close()
-        self._cleanup()
+                destination = os.path.join(os.path.dirname(filename), 'index.pdf')
+            subprocess.call([prince, "--input=html", filename, "-o", destination])
+            if not os.path.isfile(destination):
+                result = False
+            else:
+                result = True
+                if ret:
+                    result = StringIO.StringIO()
+                    file = open(destination, 'r')
+                    for line in file:
+                        result.write(line)
+                    file.close()
+        finally:
+            self._cleanup()
         return result
 
     def _download(self, method):
@@ -100,7 +104,7 @@ class PDFConverter(object):
         file.write(css)
         file.close()
         style = Tag(html, 'link', {'rel': u'stylesheet', 'media': u'all', 'href': 'style.css'})
-        html.find('head').insert(0, style);
+        html.find('head').insert(0, style)
 
         # Download all images and adjust the src attributes
         for img in html.findAll('img'):
@@ -114,7 +118,7 @@ class PDFConverter(object):
     def _download_file(self, url, force_download=False):
         if not force_download and not '?' in url and url.startswith(self.portal_url):
             try:
-                file = self.portal.restrictedTraverse(str(url[len(self.portal_url)+1:]))
+                file = self.portal.restrictedTraverse(str(url[len(self.portal_url) + 1:]))
                 if isinstance(file, FSDTMLMethod):
                     file = file(self.portal)
                 if hasattr(file, '_readFile'):
@@ -153,7 +157,10 @@ class PDFConverter(object):
             parts = url.split('/')
             field = parts.pop()
             scale = None
-            context = self.portal.restrictedTraverse(str('/'.join(parts)[len(self.portal_url)+1:]))
+            try:
+                context = self.portal.restrictedTraverse(str('/'.join(parts)[len(self.portal_url) + 1:]))
+            except Unauthorized:
+                return u''
             if field.startswith('image_'):
                 field, scale = field.split('_')
             image = context.Schema()[field].get(context)
