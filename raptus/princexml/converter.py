@@ -76,7 +76,7 @@ class PDFConverter(object):
         css = u''
         for link in html.findAll(['style', 'link']):
             if link.name == 'style':
-                css += link.contents + u'\n\n'
+                css += ''.join(link.contents) + u'\n\n'
             elif link['rel'] == 'stylesheet':
                 css += self._get_css(link['href']) + u'\n\n'
             link.extract()
